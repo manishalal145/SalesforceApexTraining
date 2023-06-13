@@ -10,8 +10,9 @@ public class IfElsePractice {
         else if (a<0){
             System.debug('Negative');
         }
-      }
+    }
     
+    // One line
     public void hasNLength(String input , Integer n){
         if(input.length()<=n){
             System.debug('Valid');
@@ -21,6 +22,7 @@ public class IfElsePractice {
         }     
     }
     
+    // One line
     public Boolean hasExactLength(String input , Integer n){     
         
         Boolean retVal = input.length()==n;

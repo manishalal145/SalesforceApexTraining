@@ -1,63 +1,52 @@
 public class AccountService {
     
-    public Account createAccount(){
+    public Account createAccount() {
         
-        Account acc = new Account();
-        acc.Name = 'Germany1';
-        acc.Industry = 'Technology' ;
-        acc.Type = 'Technology Partner';
-        acc.AnnualRevenue = 50000;
-        acc.BillingCity = 'Scotland';
+        Account account = new Account();
+        account.Name = 'Germany1';
+        account.Industry = 'Technology' ;
+        account.Type = 'Technology Partner';
+        account.AnnualRevenue = 50000;
+        account.BillingCity = 'Scotland';
         
-        System.debug('The account is: ' + acc);
-        return acc;
+        return account;
     }
     
-    public void insertAccount(Account acc){
-        insert acc;
+    public void insertAccount(Account account){
+        insert account;
     }
     
-    public String getAccountSummary(Account acc){
-        
-        String ConAcc = acc.Name + acc.Type + acc.AnnualRevenue;
-        System.debug('The account summary is: ' + ConAcc);
-        return ConAcc;     
+    public String getAccountSummary(Account account){
+        return account.Name + account.Type + account.AnnualRevenue;     
     }
     
     public Boolean isTestAccount(Account acc){
         Boolean retVal;
         if (acc.Name.contains('Test')){
-            retVal=true;
+            retVal = true;
             System.debug('The account name contains Test');
-        }
-        else{
+        } else {
             retVal = false;
             System.debug('The account name doesnt contain Test');
         }
         return retVal; 
     }
     
-    public String printAccountTier(Account acc){
-        String Tier;
+    public String printAccountTier(Account account){
+        String tier = 'VIP Tier';
         
-        if(acc.AnnualRevenue ==0){
-            Tier = 'No Tier';   
-        }
-        else if(acc.AnnualRevenue < 50000){
-            Tier = 'Silver Tier';
-        }
-        else if(acc.AnnualRevenue >= 50000 && acc.AnnualRevenue < 300000){
-            Tier = 'Golden Tier';
-        }
-        else if(acc.AnnualRevenue >= 300000){
-            Tier = 'VIP Tier';
-        }
+        if(account.AnnualRevenue == 0){
+            tier = 'No Tier';   
+        } else if(account.AnnualRevenue < 50000){
+            tier = 'Silver Tier';
+        } else if(account.AnnualRevenue < 300000){
+            tier = 'Golden Tier';
+        } 
         
-        System.debug('The Tier is ' + Tier);
-        return Tier;
+        return tier;
     }
     
-    public Account createNewAccount(String name , String type , String accountNumber){
+    public Account createNewAccount(String name, String type, String accountNumber){
         
         Account newAcc = new Account();
         newAcc.Name = name;
