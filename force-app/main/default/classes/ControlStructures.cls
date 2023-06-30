@@ -48,7 +48,7 @@ public class ControlStructures {
         return position;    
     }
 
-    public void displayFibonacci (Integer n){
+    public Integer displayFibonacci (Integer n){
         Integer currentVal = 0;
         List <Integer> sequence = new List <Integer> {0,1};
         

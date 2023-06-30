@@ -42,7 +42,6 @@ public class IfElsePractice {
     
     public Integer maximumNumber(Integer number1 , Integer number2 , Integer number3){
        Integer result = math.max(math.max(number1,number2),math.max(number2,number3));
-       System.debug('The result is:: ' + result);
        return result;
     }
     
