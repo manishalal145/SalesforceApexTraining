@@ -47,6 +47,18 @@ public class ControlStructures {
         }   
         return position;    
     }
+
+    public void displayFibonacci (Integer n){
+        Integer currentVal = 0;
+        List <Integer> sequence = new List <Integer> {0,1};
+        
+        for(Integer i = 1; i <= n; i++)
+        {
+            currentVal = sequence.get(i) + sequence.get(i-1);
+            sequence.add(currentVal);
+        }
+        return sequence.get(n - 1);
+    }
     
     
     
