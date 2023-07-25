@@ -1,7 +1,5 @@
 public class ControlStructures {
     
-    //                                      10                      1  -> 1..10
-    //                                      1                       10 -> 1..10 
     public Integer calculateRange(Integer firstNumber, Integer secondNumber) {
         if(firstNumber == null || secondNumber == null){
             return 0;
