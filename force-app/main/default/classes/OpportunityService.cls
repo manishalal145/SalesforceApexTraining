@@ -99,5 +99,41 @@ public class OpportunityService {
         return b;
     }
     
+    public List<Opportunity> createOpportunities(Integer n){
+        List<Opportunity> opportunities = new List<Opportunity>();
+        
+        for(Integer i = 0; i < n; i++){
+            Opportunity opportunity1 = new Opportunity();
+            opportunity1.Amount = ListsPractice.getRandomNumberInRange(1000 , 300000);
+            opportunities.add(opportunity1);   
+        }
+
+        return opportunities;    
+    }
     
+    public Double calculateTotalRevenue(List<Opportunity> opportunities){
+        Double totalRevenue = 0.0;
+
+        for(Opportunity opportunity : opportunities){
+            totalRevenue += opportunity.Amount;
+        }
+
+        return totalRevenue;
+    }
+    
+    public List<Opportunity> filterOpportunitiesByStage(List<Opportunity> opportunities, String stageName){
+        List<Opportunity> newOpportunities = new List<Opportunity>();
+
+        for(Opportunity opportunity : opportunities){
+            if(stageName == opportunity.StageName){
+                newOpportunities.add(opportunity);
+            }
+        }
+
+        return newOpportunities;    
+    }
+    
+    public List<Opportunity> filterClosedWonOpportunities(List<Opportunity> opportunities){
+        return filterOpportunitiesByStage(opportunities, 'Closed Won');    
+    }
 }
