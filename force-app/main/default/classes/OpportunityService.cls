@@ -99,5 +99,68 @@ public class OpportunityService {
         return b;
     }
     
+    public List<Opportunity> createOpportunities(Integer n){
+        List<Opportunity> opportunities = new List<Opportunity>();
+        
+        for(Integer i = 0; i < n; i++){
+            Opportunity opportunity1 = new Opportunity();
+            opportunity1.Amount = ListsPractice.getRandomNumberInRange(1000 , 300000);
+            opportunities.add(opportunity1);   
+        }
+
+        return opportunities;    
+    }
     
+    public Double calculateTotalRevenue(List<Opportunity> opportunities){
+        Double totalRevenue = 0.0;
+
+        for(Opportunity opportunity : opportunities){
+            totalRevenue += opportunity.Amount;
+        }
+
+        return totalRevenue;
+    }
+    
+    public List<Opportunity> filterOpportunitiesByStage(List<Opportunity> opportunities, String stageName){
+        List<Opportunity> newOpportunities = new List<Opportunity>();
+
+        for(Opportunity opportunity : opportunities){
+            if(stageName == opportunity.StageName){
+                newOpportunities.add(opportunity);
+            }
+        }
+
+        return newOpportunities;    
+    }
+    
+    public List<Opportunity> filterClosedWonOpportunities(List<Opportunity> opportunities){
+        return filterOpportunitiesByStage(opportunities, 'Closed Won');    
+    }
+
+    /**
+     * The method takes a string argument that indicates a certain stage that is considered 
+     * favorable for a company. The probability field for any opportunity that 
+     * has this stage should be increased by 10%.
+     * 
+     * SOQL return types:
+     * - List of sobjects
+     * - One sobject
+     * - Integer
+     * - AggregateResult
+     */
+    public void increaseProbabilityForFavorableStage(String favorableStage){
+        List<Opportunit> opps = [
+            SELECT Id, Probability, StageName 
+            FROM Opportunity 
+            WHERE StageName = :favorableStage
+        ];
+
+        for(Opportunity opp : opps) {
+            if(opp.Probability < 90) {
+                opp.Probability += 10;
+            }
+        }
+
+        update opps;
+    }
 }
