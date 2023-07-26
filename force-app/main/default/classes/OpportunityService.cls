@@ -136,4 +136,31 @@ public class OpportunityService {
     public List<Opportunity> filterClosedWonOpportunities(List<Opportunity> opportunities){
         return filterOpportunitiesByStage(opportunities, 'Closed Won');    
     }
+
+    /**
+     * The method takes a string argument that indicates a certain stage that is considered 
+     * favorable for a company. The probability field for any opportunity that 
+     * has this stage should be increased by 10%.
+     * 
+     * SOQL return types:
+     * - List of sobjects
+     * - One sobject
+     * - Integer
+     * - AggregateResult
+     */
+    public void increaseProbabilityForFavorableStage(String favorableStage){
+        List<Opportunit> opps = [
+            SELECT Id, Probability, StageName 
+            FROM Opportunity 
+            WHERE StageName = :favorableStage
+        ];
+
+        for(Opportunity opp : opps) {
+            if(opp.Probability < 90) {
+                opp.Probability += 10;
+            }
+        }
+
+        update opps;
+    }
 }
