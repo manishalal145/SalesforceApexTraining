@@ -12,7 +12,7 @@ public class OpportunityQueries {
     
     public List<Opportunity> queryOpportunitiesByCreatedDate(Date startDate , Date endDate){
         List<Opportunity> opportunityList = [SELECT Id, Name, CreatedDate FROM Opportunity WHERE CreatedDate <=: startDate 
-                                            AND CreatedDate >=: endDate];
+                                             AND CreatedDate >=: endDate];
         return opportunityList;    
     }
     
