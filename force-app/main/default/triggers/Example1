@@ -1,0 +1,25 @@
+//Write a trigger, if the owner of an account is changed then the owner for the related contacts should also be updated.
+
+trigger updateContact on Account(after update){
+
+    if(trigger.isUpdate && trigger.isAfter){
+        Set<Id> AccountIds = new Set<Id>();
+
+        for(Account a: Trigger.New){
+            if(a.OwnerId != Trigger.oldMap.get(a.Id).OwnerId){
+                AccountIds.add(a.Id);
+            }
+        }
+        
+        if(!AccountIds.isEmpty()){
+            List<Contact> contacts = [Select Id, AccountId, OwnerId FROM Contact WHERE AccountId IN : AccountIds];
+           
+            for(Contact con : contacts){
+                con.OwnerId = Trigger.newMap.get(con.AccountId).OwnerId;
+            }
+            if(!contacts.isEmpty()){
+                update contacts;
+            }
+        }
+    }
+}

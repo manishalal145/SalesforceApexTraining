@@ -1,0 +1,29 @@
+//Write a trigger, to achieve the following:
+// Create a new Opportunity whenever an account is created/updated for Industry – Agriculture.
+// Opportunity should be set as below:
+// Stage = ‘Prospecting’, Amount = $0, CloseDate = ’90 days from today’.
+
+trigger createOpportunity on Account(after insert, after update){
+    
+    List<Opportunity> newOpp = new List<Opportunity>();
+
+    for(Account a: Trigger.New){
+        Account oldValue = Trigger.isUpdate ? Trigger.oldMap.get(a.Id) : null;
+
+        if((Trigger.isInsert && a.Industry == 'Agriculture') || 
+            (oldValue != null && oldValue.Industry != 'Agriculture' && a.Industry == 'Agriculture')){
+                Opportunity opp = new Opportunity();
+                opp.AccountId = a.Id;
+                opp.Name = a.Name+'New Opportunity';
+                opp.StageName = 'Prospecting';
+                opp.Amount = 0;
+                opp.CloseDate = System.today().addDays(90);
+                newOpp.add(opp);
+
+        }
+    }
+
+    if(!newOpp.isEmpty()){
+        insert newOpp;
+    }
+}
