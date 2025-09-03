@@ -3,27 +3,27 @@
 // Opportunity should be set as below:
 // Stage = ‘Prospecting’, Amount = $0, CloseDate = ’90 days from today’.
 
-trigger createOpportunity on Account(after insert, after update){
-    
+trigger createOpp on Account(after insert, after update){
+
     List<Opportunity> newOpp = new List<Opportunity>();
 
-    for(Account a: Trigger.New){
-        Account oldValue = Trigger.isUpdate ? Trigger.oldMap.get(a.Id) : null;
+    for(Account acct: Trigger.new){
 
-        if((Trigger.isInsert && a.Industry == 'Agriculture') || 
-            (oldValue != null && oldValue.Industry != 'Agriculture' && a.Industry == 'Agriculture')){
-                Opportunity opp = new Opportunity();
-                opp.AccountId = a.Id;
-                opp.Name = a.Name+'New Opportunity';
-                opp.StageName = 'Prospecting';
-                opp.Amount = 0;
-                opp.CloseDate = System.today().addDays(90);
-                newOpp.add(opp);
+        Account oldAccount = Trigger.isUpdate? Trigger.oldMap.get(acct.Id) : null;
 
+        if(acct.Industry == 'Agriculture' && (Trigger.isInsert || (oldAccount!= null  && oldAccount.Industry!= 'Agriculture'))){
+            Opportunity new1 = new Opportunity();
+            new1.AccountId = acct.Id;
+            new1.Name = 'New Opportunity';
+            new1.StageName = 'Prospecting';
+            new1.Amount = 0;
+            new1.CloseDate = System.today().addDays(90);
+            newOpp.add(new1);
         }
     }
 
     if(!newOpp.isEmpty()){
         insert newOpp;
     }
+
 }
