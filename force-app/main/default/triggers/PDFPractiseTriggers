@@ -1,0 +1,412 @@
+// Upon Account Creation if Industry is not null and having value as ‘Media’ then populate Rating as Hot.
+trigger populateRating on Account(before insert){
+    for(Account acc: Trigger.new){
+        if(acc.Industry != null && acc.Industry == 'Media'){
+            acc.Rating = 'Hot';
+        }
+    }
+}
+// Upon Opportunity Creation if Amount is not null and is greater than 100000 then populate ‘Hot Opportunity’ in description field.
+trigger updateDescription on Opportunity(before insert){
+    for(Opportunity opp: Trigger.new){
+        if(opp.Amount != null && opp.Amount > 100000){
+            opp.Description = 'Hot Opportunity';
+        }
+    }
+}
+// When an account inserts and CopyBillingToShipping (Custom Field) checkbox is checked then automatically copy account billing city into account shipping city.
+trigger copyAddress on Account(before insert){
+    for(Account acc: Trigger.new){
+        if(acc.CopyBillingToShipping == True){
+            acc.ShippingCity = acc.BillingCity;;
+        }
+    }
+}
+// Upon Creation of Position (Custom Object) if it is a New Position and Open Date, Min Pay & Max Pay are not populated then populated them with below values:
+    // a. Open Date = Today’s Date
+    // b. Min Pay = 10000
+    // c. Max Pay = 15000
+trigger populateFields on position__c(before insert){
+    for(position__c pos: Trigger.new){
+        if(pos.open_date__c == null){
+            pos.open_date__c = System.today();
+        }
+        if(pos.min_Pay__c == null){
+            pos.min_Pay__c = 10000;
+        }
+        if(pos.max_Pay__c == null){
+            pos.max_Pay__c = 15000;
+        }
+    }
+}
+// Create a related Contact when an Account is created.
+trigger createContact on Account(after insert){
+    List<Contact> newContacts = new List<Contact>();
+    for(Account acc: Trigger.new){
+        Contact con = new Contact(Name = acc.Name, AccountId = acc.Id);
+        newContacts.add(con);
+    }
+    if(!newContacts.isEmpty()){
+        insert newContacts;
+    }
+}
+// Create a related Opportunity when an Account is created.
+trigger createOpportunity on Account(after insert){
+    List<Opportunity> newOpportunities = new List<Opportunity>();
+    for(Account acc: Trigger.new){
+        Opportunity op1 = new Opportunity(Name = acc.Name, AccountId = acc.Id, StageName = 'Prospecting', CloseDate = Date.today().addDays(30));
+        newOpportunities.add(op1);
+    }
+    if(!newOpportunities.isEmpty()){
+        insert newOpportunities;
+    }
+}
+// When a Case is created on any Account, put the latest case number on the Account in the ‘Latest Case Number’ field.(We assume only case is inserted at a time for account)
+trigger updateAccount on Case(after insert){
+    Map<Id,String> accountIds = new Map<Id,String>();
+    for(Case ca: Trigger.new){
+        accountIds.put(ca.AccountId, ca.CaseNumber);
+    }
+
+    List<Account> accounts =[SELECT Id, latest_CaseNumber__c FROM Account WHERE Id IN:accountIds.keySet()];
+    for(Account acc: accounts){
+        if(accountIds.containsKey(acc.Id)){
+            acc.latest_CaseNumber__c = accountIds.get(acc.Id);
+        }
+    }
+
+    if(!accounts.isEmpty()){
+        update accounts;
+    }
+}
+//When an account is inserted or updated and the CopyBillingToShipping checkbox is checked then automatically copy the account billing address into account shipping address.
+trigger copyAddress on Account(before insert, before update){
+    for(Account acc: Trigger.new){
+        if(acc.CopyBillingToShipping__c == True){
+            acc.ShippingCity = acc.BillingCity;
+            acc.ShippingStreet = acc.BillingStreet;
+            acc.ShippingState = acc.BillingState;
+            acc.ShippingPostalCode = acc.BillingPostalCode;
+            acc.ShippingCountry = acc.BillingCountry;
+        }
+    }
+}
+//Upon Account Creation or updation if Industry is not null and having value as ‘Media’ then populate Rating as Hot.
+trigger updateIndustry on Account(before insert, before update){
+    for(Account acc: Trigger.new){
+        if(acc.Industry != null && acc.Industry == 'Media'){
+            acc.Rating = 'Hot';
+        }
+    }
+}
+//If opportunity Stage is updated upon its creation or update then update description as either 'Opp is Closed Lost' or 'Opp is Closed Won' or 'Opp is Open'.
+trigger updateStage on Opportunity(before insert, before update){
+    for(Opportunity opp: Trigger.new){
+        if(Trigger.isInsert || opp.StageName != Trigger.oldMap.get(opp.Id).StageName){
+            if(opp.StageName == 'Closed Won'){
+                opp.Description = 'Opp is Closed Won';
+            }
+            else if(opp.StageName == 'Closed Lost'){
+                opp.Description = 'Opp is Closed Lost';
+            }
+            else{
+                opp.Description = 'Opp is Open';
+            }
+        }
+    }
+}
+//If the Account phone is updated then populate the phone number on all related Contacts (Home Phone field). [Using Map]
+trigger updatePhone on Account(after update){
+    Map<Id,String> accountPhone = new Map<Id,String>();
+    for(Account a : Trigger.new){
+        Account oldValues = Trigger.oldMap.get(a.Id);
+        if(oldValues.Phone != a.Phone){
+            accountPhone.put(a.Id,a.Phone);
+        }
+    }
+    if(!accountPhone.isEmpty()){
+        List<Contact> associatedContacts = [SELECT AccountId, HomePhone FROM Contact WHERE AccountId IN :accountPhone.keySet()];
+        for(Contact con: associatedContacts){
+            con.HomePhone = accountPhone.get(con.AccountId);
+        }
+
+        if(!associatedContacts.isEmpty()){
+            update associatedContacts;
+        }
+    }
+}
+// If the Account billing city is updated then update related contacts mailing city. [Using Map]
+trigger updateContact on Account(after update){
+    Map<Id,String> accounts = new Map<Id,String>();
+    for(Account acc: Trigger.new){
+        Account oldValues = Trigger.oldMap.get(acc.Id);
+        if(acc.BillingCity != oldValues.BillingCity){
+            accounts.put(acc.Id,acc.BillingCity);
+        }
+    }
+
+    if(!accounts.isEmpty()){
+        List<Contact> contacts = [SELECT AccountId,MailingCity FROM Contact WHERE AccountId IN :accounts.keySet()];
+        if(!contacts.isEmpty()){
+            for(Contact con: contacts){
+                con.MailingCity = accounts.get(con.AccountId);
+            }
+            update contacts;
+        }
+    }
+}
+//When a Opportunity Stage (field) is changed, create a Task record on Opportunity and assign it to Logged In User/Opportunity Owner / Any User.
+trigger createTask on Opportunity(after update){
+    List<Task> newTasks = new List<Task>();
+    for(Opportunity opp: Trigger.new){
+        Opportunity oldValues = Trigger.oldMap.get(opp.Id);
+        if(opp.StageName != oldValues.StageName){
+            Task t1 = new Task(OwnerId = opp.OwnerId, WhatId = opp.Id, Subject ='Stage Changed');
+            newTasks.add(t1);
+        }
+    }
+    if(!newTasks.isEmpty()){
+        insert newTasks;
+    }
+}
+//Write a trigger on Account when Account Active field is updated from ‘Yes’ to ‘No’ then check all opportunities associated with the account. Update all Opportunities Stage to close lost if stage not equal to close won.
+trigger updateOpportunities on Account(after update){
+    Set<Id> accountIds = new Set<Id>();
+    for(Account acc: Trigger.new){
+        Account oldValues = Trigger.oldMap.get(acc.Id);
+        if(oldValues.Active__c =='Yes' && acc.Active__c == 'No'){
+            accountIds.add(acc.Id);
+        }
+    }
+
+    if(!accountIds.isEmpty()){
+        List<Opportunity> associatedOpps = [SELECT AccountId, StageName FROM Opportunity WHERE StageName != 'Closed Won' AND AccountId IN: accountIds];
+        for(Opportunity opp: associatedOpps){
+            opp.StageName = 'Closed Lost';
+        }
+        update associatedOpps;
+    }
+}
+// Account records cannot be deleted if active is Yes
+trigger deleteAccount on Account(before delete){
+    for(Account acc: Trigger.old){
+        if(acc.Active__c == 'Yes'){
+            acc.addError('This account cannot be deleted');
+        }
+    }
+}
+//Prevent account record from being edited if the record is created 7 days back.
+trigger validateEdit on Account(before update){
+    for(Account acc: Trigger.new){
+        if(acc.CreatedDate <= DateTime.now().addDays(-7)){
+            acc.addError('This account cannot be edited');
+        }
+    }
+}
+//Apply validation using addError( ) method in trigger. While Creation of Opportunity is Amount is null then throw an error message
+trigger validateOpp on Opportunity(before insert){
+    for(Opportunity opp: Trigger.new){
+        if(opp.Amount == null){
+            opp.addError('Null amount. Opportunity cannot be created');
+        }
+    }
+}
+//When an opportunity is updated to Closed Lost and Closed Lost Reason (field) is not populated then throw validation error that ‘Please populate Closed Lost Reason’ on opportunity.
+trigger validateOpp on Opportunity(before update){
+    for(Opportunity opp: Trigger.new){
+        if(opp.StageName == 'Closed Lost' && opp.Description == null){
+            opp.addError('Please populate Closed Lost Reason');
+        }
+    }
+}
+//Write a trigger on Account and check only System Administrator profile users should be able to delete an account.
+trigger deleteAccount on Account(before delete){
+    //Get Admin Profile Id
+    Profile adminProfile = [SELECT Id FROM Profile WHERE Name = 'System Administrator' LIMIT 1];
+
+    //Get current user Profile Id
+    Id currentUserProfileId = UserInfo.getProfileId();
+
+    for(Account acc: Trigger.old){
+        if(currentUserProfileId != adminProfile.Id){
+            acc.addError('Only System Admins can delete the account');
+        }
+    }
+}
+//If an opportunity is closed then, no one should be able to delete it except the user having a System Administrator profile
+trigger deleteOpp on Opportunity(before delete){
+    //Get Admin profile
+    Profile AdminProfile = [SELECT Id FROM Profile WHERE Name = 'System Administrator' LIMIT 1];
+
+    // Get the current user's profile ID
+    Id currentUserProfileId = UserInfo.getProfileId();
+
+    for(Opportunity opp: Trigger.old){
+        if(currentUserProfileId != AdminProfile.Id && (opp.StageName == 'Closed Won' || opp.StageName == 'Closed Lost')){
+            opp.addError('Closed opportunity can be deleted by System Administrator only');
+        }
+    }
+}
+//Prevent deletion of an account if there is any opportunity related to that account.
+trigger preventDeletion on Account(before delete){
+    Set<Id> accountIds = new Set<Id>();
+    for(Account acc: Trigger.old){
+        accountIds.add(acc.Id);
+    }
+
+    List<Opportunity> associatedOpps = [SELECT AccountId, StageName FROM Opportunity WHERE AccountId IN: accountIds];
+    if(!associatedOpps.isEmpty()){
+        Set<Id> accountsWithOpp = new Set<Account>();
+        for(Opportunity opp: associatedOpps){
+            accountsWithOpp.add(opp.AccountId);
+        }   
+    }
+
+    for(Account acc: Trigger.old){
+        if(accountsWithOpp.contains(acc.Id)){
+            acc.addError('Account with Opportunity cannot be deleted')
+        }
+    }
+}
+//Prevent deletion of an account if there is any case related to that account.
+trigger accountDeletion on Account(before delete){
+    Set<Id> accountIds = new Set<Id>();
+    for(Account acc: Trigger.old){
+        accountIds.add(acc.Id);
+    }
+    
+    Set<Id> accountsWithCases = new Set<Id>();
+    if(!accountIds.isEmpty()){
+        List<Case> associatedCases = [SELECT AccountId FROM CASE WHERE AccountId IN:accountIds];
+        for(Case ca: associatedCases){
+            accountsWithCases.add(ca.AccountId);
+        }
+    }
+
+    for(Account acc: Trigger.old){
+        if(accountsWithCases.contains(acc.Id)){
+            acc.addError('Account with case(s) cannot be deleted');
+        }
+    }
+}
+//When the Contact record is deleted then update ‘Left Contact Count’ on Account.
+trigger contactCount on Contact(after delete){
+
+    //Get account ids of contact deleted
+    Set<Id> accountIds = new Set<Id>();
+    for(Contact con: Trigger.old){
+        if(con.AccountId != null){
+            accountIds.add(con.AccountId);
+        }
+    }
+
+    if(accountIds.isEmpty()){
+        return;
+    }
+
+    //Get a map containing the accountIds and their total contacts now
+    Map<Id, Integer> contactCountMap = new Map<Id,Integer>();
+    List<AggregateResult> results = [SELECT COUNT(Id)totalContacts, AccountId FROM Contact WHERE AccountId IN:accountIds GROUP BY AccountId];
+    for(AggregateResult result : results){
+        contactCountMap.put((Id)result.get('AccountId'),(Integer)result.get('totalContacts'));
+    }
+
+    //Get the list of accounts whose contacts are deleted
+    List<Account> accounts = [SELECT Id, leftContactCount__c FROM Account WHERE Id IN: accountIds];
+    for(Account acc: accounts){
+        if(contactCountMap.containsKey(acc.Id)){
+            acc.leftContactCount__c = contactCountMap.get(acc.Id);
+        }else {
+            // If no contacts remain, set to 0
+            acc.leftContactCount__c = 0;
+        }
+    }
+
+    if(!accounts.isEmpty()){
+        update accounts;
+    }
+}
+//When the conatct record is inserted, or deleted then update ‘Present Contact Count’ on related Account.
+trigger updateContactCount on Contact(after insert, after delete){
+    Set<Id> accountIds = new Set<Id>();
+    if(trigger.isInsert){
+        for(Contact con: Trigger.new){
+            accountIds.add(con.AccountId);
+        }
+    }
+
+    if(trigger.isDelete){
+        for(Contact con: Trigger.old){
+            accountIds.add(con.AccountId);
+        }
+    }
+
+    if(accountIds.isEmpty()) return;
+        
+    List<AggregateResult> contactCount = [SELECT COUNT(Id)contactCount, AccountId FROM Contact WHERE AccountId IN:accountIds GROUP BY AccountId];
+    Map<Id,Integer>contactCountMap = new Map<Id,Integer>();
+    for(AggregateResult ar: contactCount){
+        contactCountMap.put((Id)ar.get('AccountId'),(Integer)ar.get('contactCount'));
+    }
+
+    List<Account> accounts = [SELECT Id, presentContactCount__c FROM Account WHERE Id IN:accountIds];
+    for(Account acc: accounts){
+        acc.presentContactCount__c = contactCountMap.containsKey(acc.Id) ? contactCountMap.get(acc.Id) : 0;
+    }
+
+    if(!accounts.isEmpty()){
+        update accounts;
+    }
+}
+//Create two record types named as “Partner Case” and “Customer Case” on Case Object.On creation of Case, as per the record type populate the total number of Partner Case or Customer Case on Account object. 
+trigger updateCount on Case(after insert){
+    //GET Account IDs FOR WHICH NEW CASES ARE CREATED
+    Set<Id> accountIds = new Set<Id>();
+    for(Case ca: Trigger.new){
+        accountIds.add(ca.AccountId);
+    }
+
+    //GET ACCOUNTS IN A LIST WITH THESE IDs THAT NEED UPDATE
+    List<Account> accounts = [SELECT Id, partnerCaseCount__c, customerCaseCount__c FROM Account WHERE Id IN:accountIds];
+
+    Map<Id,Integer> partnerCaseCountMap = new Map<Id,Integer>();
+    List<AggregateResult> partnerCaseCount = [SELECT COUNT(Id)partnerCaseCount, AccountId FROM CASE WHERE RecordType.Name = 'Partner Case' AND AccountId IN: accountIds GROUP BY AccountId];
+    for(AggregateResult ar: partnerCaseCount){
+        partnerCaseCountMap.put((Id)ar.get('AccountId'),(Integer)ar.get('partnerCaseCount'));
+    }
+
+    Map<Id,Integer> customerCaseCountMap = new Map<Id,Integer>();
+    List<AggregateResult> customerCaseCount = [SELECT COUNT(Id)customerCaseCount, AccountId FROM CASE WHERE RecordType.Name = 'Customer Case' AND AccountId IN: accountIds GROUP BY AccountId];
+    for(AggregateResult ar: customerCaseCount){
+        customerCaseCountMap.put((Id)ar.get('AccountId'),(Integer)ar.get('customerCaseCount'));
+    }
+    
+    for(Account acc: accounts){
+        acc.partnerCaseCount__c = partnerCaseCountMap.containsKey(acc.Id) ? partnerCaseCountMap.get(acc.Id) : 0;
+        acc.customerCaseCount__c = customerCaseCountMap.containsKey(acc.Id) ? customerCaseCountMap.get(acc.Id) : 0;
+    }
+
+    if(!accounts.isEmpty()){
+        update accounts;
+    }
+} 
+//Write a trigger, if the owner of an account is changed then the owner for the related contacts should also be updated.
+trigger ownerChange on Account(after update){
+    Map<Id,Id> accountIds = new Map<Id,Id>();
+    for(Account acc: Trigger.new){
+        Account oldValues = Trigger.oldMap.get(acc.Id);
+        if(acc.OwnerId != oldValues.OwnerId){
+            accountIds.put(acc.Id, acc.OwnerId);
+        }
+    }
+
+    if(!accountIds.isEmpty()){
+        List<Contact> associatedContacts = [SELECT OwnerId, AccountId FROM Contact WHERE AccountId IN:accountIds.keySet()];
+        for(Contact con: associatedContacts){
+            con.OwnerId = accountIds.get(con.AccountId);
+        }
+        if(!associatedContacts.isEmpty()){
+            update associatedContacts;
+        }
+    }
+}

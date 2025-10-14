@@ -1,0 +1,199 @@
+//Example 1:Write a trigger, when a new Account is created then create a contact related to that account.
+trigger contactCreation on Account(after insert){
+    List<Contact> newContacts = new List<Contact>();
+    for(Account acc: Trigger.new){
+        Contact con = new Contact(LastName = acc.Name, AccountId = acc.Id);
+        newContacts.add(con);
+    }
+    if(!newContacts.isEmpty()){
+        insert newContacts;
+    }
+}
+
+//Example 2:Write a trigger, if the owner of an account is changed then the owner for the related contacts should also be updated.
+trigger changeOwner on Account(after update){
+    Map<Id,Id> accountIds = new Map<Id,Id>();
+    for(Account acc: Trigger.new){
+        Account oldAcc = Trigger.oldMap.get(acc.Id);
+        if(acc.OwnerId != oldAcc.OwnerId){
+            accountIds.put(acc.Id, acc.OwnerId);
+        }
+    }
+
+    List<Contact> associatedContacts = [SELECT AccountId, OwnerId FROM Contact WHERE AccountId IN: accountIds.keySet()];
+    if(!associatedContacts.isEmpty()){
+        for(Contact con: associatedContacts){
+            if(accountIds.containsKey(con.AccountId)){
+                con.OwnerId = accountIds.get(con.AccountId);
+            }
+        }
+        update associatedContacts;
+    }
+}
+
+//Example 3:Write a trigger, to achieve the following:
+    //Create a new Opportunity whenever an account is created/updated for Industry – Agriculture.
+    //Opportunity should be set as below:
+    //Stage = ‘Prospecting’, Amount = $0, CloseDate = ’90 days from today’.
+trigger createOpp on Account(after insert, after update){
+    List<Opportunity> newOpp = new List<Opportunity>();
+
+    for(Account acc: Trigger.New){
+        
+        Account oldAcc = Trigger.isUpdate ? Trigger.oldMap.get(acc.Id) : null;
+
+        Boolean newAccount = Trigger.isInsert && acc.Industry == 'Agriculture';
+        Boolean updateAccount = Trigger.isUpdate && oldAcc != null && oldAcc.Industry != 'Agriculture' && acc.Industry == 'Agriculture';
+
+        if(newAccount || updateAccount){
+            Opportunity newOp1 = new Opportunity(Name = 'New Opportunity - Agriculture', StageName = 'Prospecting', Amount = 0, CloseDate = System.today().addDays(90), AccountId = acc.Id);
+            newOpp.add(newOp1);
+        }
+    }
+
+    if(!newOpp.isEmpty()){
+        insert newOpp;
+    }
+}
+
+//Example 4:Write a trigger, to achieve the following:
+    //Given: There is any associated Contact to an Account,
+    //When: User tries to delete the Account,
+    //Then: User should get the error that Account with associated Contact can not be deleted.
+trigger deleteAccount on Account(before delete){
+    Set<Id> accounts = new Set<Id>();
+    for(Account acc: Trigger.old){
+        accounts.add(acc.Id);
+    }
+
+    List<Contact> associatedContacts = [SELECT AccountId, Id FROM Contact Where AccountId IN:accounts];
+    Set<Id> accountWithContacts = new Set<Id>();
+    for(Contact con: associatedContacts){
+        accountWithContacts.add(con.AccountId);
+    }
+
+    for(Account acc: Trigger.old){
+        if(accountWithContacts.contains(acc.Id)){
+            acc.addError('Account with associated Contact(s) cannot be deleted.');
+        }    
+    }
+}
+
+//Example 5: If an opportunity is closed then, no one should be able to delete it except user having System Administrator profile.
+trigger deleteOpp on Opportunity(before delete){
+
+    //Get System Admin Profile
+    Profile adminProfile = [SELECT Id FROM Profile WHERE Name = 'System Administrator' LIMIT 1];
+
+    //Get logged in user Profile Id
+    Id currentUserProfileId = UserInfo.getProfileId();
+
+    for(Opportunity opp: Trigger.old){
+        if(currentUserProfileId != adminProfile.Id && (opp.StageName == 'Closed Lost' || opp.StageName == 'Closed Won')){
+            opp.addError('Closed opportunity can be deleted by System Administrator only');
+        }
+    }
+}
+
+//Once an opportunity is marked as closed won, send an email to the following users: Opportunity Owner & Account Owner
+
+
+//Example 6: Write a trigger: Count the total number of contacts associated to an Account whenever a Contact is, 
+    // Inserted or Deleted related to the Account.
+    // Field Total_Contacts_Count__c should get updated with the latest count.
+
+
+
+
+
+
+//Example 7:Whenever the BillingCity of any Account is updated, update MailingCity of all the Contacts related to the account.
+trigger updateMailingCity on Account(after update){
+    Map<Id,String> updatedAccounts = new Map<Id,String>();
+    for(Account acc: Trigger.new){
+        Account oldAcc = Trigger.oldMap.get(acc.Id);
+        if(acc.BillingCity != oldAcc.BillingCity){
+            updatedAccounts.put(acc.Id,acc.BillingCity);
+        }
+    }
+    List<Contact> contactsToUpdate = [SELECT AccountId, MailingCity FROM Contact WHERE AccountId IN: updatedAccounts.keySet()];
+    if(!contactsToUpdate.isEmpty()){
+        for(Contact con: contactsToUpdate){
+            if(updatedAccounts.containsKey(con.AccountId)){
+                con.MailingCity = updatedAccounts.get(con.AccountId);
+            }
+        }
+        update contactsToUpdate;
+    }
+}
+
+//Example 8: Write a trigger: Whenever a new User having profile “System Administrator” is inserted and is Active, add the user to the public group “Admins”.
+trigger addToAdmins on User(after insert){
+
+    //Get Admin Profile
+    Profile AdminProfile = [SELECT Id FROM Profile WHERE Name = 'System Administrator' LIMIT 1];
+
+    //Get Id of Public group for Admins
+    Group adminGroup = [SELECT Id FROM Group WHERE DeveloperName = 'Admins' AND Type = 'Regular' LIMIT 1];
+        
+    List<GroupMember> groupMembers = new List<GroupMember>();
+    for(User user: Trigger.new){
+        if(user.ProfileId == AdminProfile.Id && user.IsActive){
+            GroupMember gm = new GroupMember(GroupId = adminGroup.Id, UserOrGroupId = user.Id);
+            groupMembers.add(gm);
+        }
+    }
+
+    if(!groupMembers.isEmpty()){
+        insert groupMembers;
+    }
+}
+
+//Example 10: Write an Apex trigger named “OpportunityTrigger” that automatically updates a custom field named “TotalWonAmount” on the Account object whenever an Opportunity related to that Account is closed/won.
+    // The custom field should contain the sum of the Amount values from all closed/won Opportunities associated with the Account. Ensure that the trigger follows Salesforce Apex trigger best practices and handles bulk updates correctly.
+trigger OpportunityTrigger on Opportunity(after update){
+    Map<Id,Decimal> accountMap = new Map<Id,Decimal>();
+    for(Opportunity opp: Trigger.New){
+        Opportunity oldOppValues = Trigger.oldMap.get(opp.Id);
+        if(opp.StageName =='Closed Won' && oldOppValues.StageName != 'Closed Won'){
+            if(accountMap.containsKey(opp.AccountId)){
+                Decimal sum = accountMap.get(opp.AccountId) + opp.Amount;
+                accountMap.put(opp.AccountId, sum);
+            }else{
+                accountMap.put(opp.AccountId, opp.Amount);
+            }    
+        }
+    }
+
+    List<Account> associatedAccounts =[SELECT Id,totalWonAmount__c FROM Account WHERE Id IN:accountMap.keySet()];
+    if(!associatedAccounts.isEmpty()){
+        for(Account acc: associatedAccounts){
+            if(accountMap.containsKey(acc.Id)){
+                Decimal currentTotal = acc.TotalWonAmount__c != null ? acc.TotalWonAmount__c : 0;
+                acc.TotalWonAmount__c = currentTotal + accountMap.get(acc.Id);
+            }
+        }
+        update associatedAccounts;
+    }
+}
+
+//Example 11: Write an Apex trigger named “OpportunityValidationTrigger” that fires before update and enforces the below conditions. If any of the conditions are violated, the trigger should add the appropriate custom error messages to the Opportunity record.
+    //Close Date Validation: Opportunities cannot have a Close Date in the past. If an Opportunity’s Close Date is in the past, display an error message stating, “Opportunity cannot have a Close Date in the past.”
+    //Stage Transition Lock: Opportunities cannot move from “Prospecting” directly to “Closed Won.” If an Opportunity tries to make this transition, show an error message saying, “Opportunity cannot transition directly from Prospecting to Closed Won.”
+    //Minimum Amount for “Closed Won”: Opportunities in the “Closed Won” stage must have an Amount greater than or equal to $10,000.
+trigger OpportunityValidationTrigger on Opportunity(before update){
+    for(Opportunity opp: Trigger.new){
+        if(opp.CloseDate < System.today()){
+            opp.addError('Opportunity cannot have a Close Date in the past.');
+        }
+        if(opp.StageName == 'Closed Won' && Trigger.oldMap.get(opp.Id).StageName == 'Prospecting'){
+            opp.addError('Opportunity cannot transition directly from Prospecting to Closed Won.');
+        }
+        if(opp.StageName == 'Closed Won' && opp.Amount < 10000){
+            opp.addError('Opportunities in the “Closed Won” stage must have an Amount greater than or equal to $10,000.');
+        }
+    }
+}
+
+
+
