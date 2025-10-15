@@ -102,7 +102,39 @@ trigger deleteOpp on Opportunity(before delete){
     // Inserted or Deleted related to the Account.
     // Field Total_Contacts_Count__c should get updated with the latest count.
 
+trigger contactCount on Contact(after insert, after delete){
+    //Get the associated account Ids
+    Set<Id> accountIds = new Set<Id>();
+    if(trigger.isInsert){
+        for(Contact con: Trigger.new){
+            accountIds.add(con.AccountId);
+        }
+    }
+    if(trigger.isDelete){
+        for(Contact con: Trigger.old){
+            accountIds.add(con.AccountId);
+        }
+    }
 
+    if(accountIds.isEmpty()) return;
+
+    List<AggregateResult> contactCount = [SELECT COUNT(Id)contactCount, AccountId FROM CONTACT WHERE AccountId IN: accountIds GROUP BY AccountId];
+    Map<Id,Integer> accountContactCountMap = new Map<Id,Integer>();
+    for(AggregateResult ar: contactCount){
+        accountContactCountMap.put((Id)ar.get('AccountId'),(Integer)ar.get('contactCount'));
+    }
+
+    List<Account> accountsToUpdate =[SELECT Id, Total_Contacts_Count__c FROM Account WHERE Id IN:accountIds];
+    for(Account acc: accountsToUpdate){
+        if(accountContactCountMap.containsKey(acc.Id)){
+            acc.Total_Contacts_Count__c = accountContactCountMap.get(acc.Id);
+        }
+    }
+
+    if(!accountsToUpdate.isEmpty()){
+        update accountsToUpdate;
+    }
+}
 
 
 
