@@ -136,9 +136,6 @@ trigger contactCount on Contact(after insert, after delete){
     }
 }
 
-
-
-
 //Example 7:Whenever the BillingCity of any Account is updated, update MailingCity of all the Contacts related to the account.
 trigger updateMailingCity on Account(after update){
     Map<Id,String> updatedAccounts = new Map<Id,String>();
